@@ -2,103 +2,137 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英语句子练习 - 导入版</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>英语句子练习 - 移动适配版</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        body { margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; overflow: hidden; }
-        .app-container { width: 100%; max-width: 900px; text-align: center; padding: 20px; position: relative; height: 80vh; display: flex; flex-direction: column; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+        .app-container { width: 100%; max-width: 900px; height: 100vh; display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; position: relative; }
         
-        /* 顶部栏：包含进度和工具按钮 */
+        /* 顶部栏 */
         .top-bar { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            box-sizing: border-box;
-            color: #999; 
-            font-size: 14px; 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 10px 0; color: #999; font-size: 14px; 
+            height: 40px; flex-shrink: 0;
         }
-
-        .tools { display: flex; gap: 10px; }
+        .tools { display: flex; gap: 8px; }
         .tool-btn {
-            background: #fff; border: 1px solid #ddd; padding: 4px 10px; cursor: pointer; border-radius: 4px; font-size: 12px; color: #666; transition: all 0.2s;
+            background: #fff; border: 1px solid #ddd; padding: 6px 12px; cursor: pointer; border-radius: 4px; font-size: 12px; color: #666; transition: all 0.2s;
         }
-        .tool-btn:hover { background: #f5f5f5; border-color: #bbb; color: #333; }
         .tool-btn.primary { background: #54a0ff; color: #fff; border-color: #54a0ff; }
-        .tool-btn.primary:hover { background: #2e86de; }
 
-        .content { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        .chinese { font-size: 38px; font-weight: 500; margin-bottom: 20px; color: #2c3e50; }
-        .phonetic { color: #95a5a6; font-family: Consolas, 'Courier New', monospace; font-size: 18px; margin-bottom: 60px; }
+        /* 内容区 */
+        .content { 
+            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            overflow-y: auto; /* 防止内容过多溢出 */
+            width: 100%;
+        }
+
+        /* 字体响应式调整 */
+        .chinese { font-size: 32px; font-weight: 500; margin-bottom: 15px; color: #2c3e50; text-align: center; }
+        .phonetic { color: #95a5a6; font-family: Consolas, monospace; font-size: 16px; margin-bottom: 40px; }
         
+        /* 核心填空区 */
         .sentence-area { 
             display: flex; justify-content: center; align-items: flex-end; flex-wrap: wrap; 
-            gap: 40px; min-height: 80px; margin-bottom: 40px;
+            gap: 30px; /* PC端间距 */
+            min-height: 60px; margin-bottom: 20px; width: 100%;
         }
         
         .word-wrapper { position: relative; display: flex; flex-direction: column; align-items: center; }
 
         .ghost-text {
-            position: absolute; bottom: 6px; left: 0; width: 100%; text-align: center; font-size: 32px;
+            position: absolute; bottom: 4px; left: 0; width: 100%; text-align: center; font-size: 28px;
             color: #e0e0e0; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 0;
         }
         .ghost-text.show { opacity: 1; }
 
         .word-input {
-            position: relative; z-index: 1; background: transparent; border: none; border-bottom: 4px solid #e0e0e0; 
-            font-size: 32px; text-align: center; color: #333; outline: none; padding-bottom: 6px; font-family: inherit; transition: all 0.2s; border-radius: 0; font-weight: 600;
-        }
-		/* 新增：当按住空格偷看时，把输入框里的字变透明，防止重叠 */
-        .word-input.peeking {
-            color: transparent !important; /* 强制文字透明 */
-            caret-color: transparent;      /* 连光标也顺便隐藏，体验更像纯阅读 */
-            border-bottom-color: transparent; /* 可选：如果你想连下划线也隐藏，让画面更干净 */
+            position: relative; z-index: 1; background: transparent; border: none; border-bottom: 3px solid #e0e0e0; 
+            font-size: 28px; text-align: center; color: #333; outline: none; padding-bottom: 4px; 
+            font-family: inherit; transition: all 0.2s; border-radius: 0; font-weight: 600;
+            min-width: 30px;
         }
         .word-input:focus { border-bottom-color: #54a0ff; }
         .word-input.error { color: #ff6b6b; border-bottom-color: #ff6b6b; }
         .word-input.correct { color: #1dd1a1; border-bottom-color: #1dd1a1; }
+        /* 偷看模式：透明 */
+        .word-input.peeking { color: transparent !important; caret-color: transparent; border-bottom-color: rgba(0,0,0,0.1); }
 
-        .success-area { margin-top: 40px; height: 50px; animation: fadeIn 0.3s ease-out; }
+        /* 成功按钮 */
+        .success-area { height: 60px; display: flex; align-items: center; justify-content: center; margin-top: 20px; }
         .next-btn {
-            background-color: #f5f5f5; border: 1px solid #e0e0e0; padding: 12px 60px; font-size: 16px; color: #666; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;
+            background-color: #f5f5f5; border: 1px solid #e0e0e0; padding: 12px 60px; font-size: 16px; 
+            color: #666; border-radius: 8px; cursor: pointer; transition: all 0.2s;
         }
-        .next-btn:hover { background-color: #e8e8e8; color: #333; transform: translateY(-2px); }
+        .next-btn:active, .next-btn:hover { background-color: #e8e8e8; color: #333; }
 
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .footer { margin-top: auto; display: flex; justify-content: center; gap: 15px; color: #aaa; font-size: 12px; }
+        /* --- 移动端触控操作栏 (手机上显示，PC隐藏) --- */
+        .mobile-controls {
+            display: none; /* 默认隐藏 */
+            width: 100%;
+            padding: 10px 0;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .m-btn {
+            flex: 1; min-width: 60px; height: 44px; border: 1px solid #eee; background: #fff; border-radius: 8px;
+            font-size: 14px; font-weight: bold; color: #555; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); user-select: none;
+        }
+        .m-btn:active { background: #f0f0f0; transform: translateY(1px); }
+        .m-btn.peek-btn { background: #fff3cd; border-color: #ffeeba; color: #856404; } /* 黄色按住看 */
+
+        /* 底部说明 (PC显示) */
+        .footer { display: flex; justify-content: center; gap: 15px; color: #aaa; font-size: 12px; margin-top: auto; }
         .key-btn { background: #f1f2f6; padding: 4px 10px; border-radius: 4px; font-weight: bold; color: #555; }
+
+        /* --- 媒体查询：针对手机屏幕调整 --- */
+        @media (max-width: 600px) {
+            .chinese { font-size: 24px; margin-bottom: 10px; }
+            .phonetic { font-size: 14px; margin-bottom: 20px; }
+            
+            /* 缩小填空区域 */
+            .sentence-area { gap: 15px; margin-bottom: 10px; }
+            .word-input, .ghost-text { font-size: 20px; border-bottom-width: 2px; }
+            
+            /* 隐藏PC底部提示，显示手机控制栏 */
+            .footer { display: none; } 
+            .mobile-controls { display: flex; }
+            
+            /* 顶部栏调整 */
+            .top-bar { flex-direction: column; height: auto; gap: 10px; align-items: flex-start; }
+            .tools { width: 100%; justify-content: space-between; }
+            .tool-btn { padding: 8px 12px; flex: 1; text-align: center; }
+        }
     </style>
 </head>
 <body>
 
 <div id="app" class="app-container">
     <div class="top-bar">
-        <div>Progress: {{ currentIndex + 1 }} / {{ sentenceList.length }}</div>
+        <div style="font-weight: bold; color: #555;">{{ currentIndex + 1 }} / {{ sentenceList.length }}</div>
         <div class="tools">
             <button class="tool-btn" @click="downloadTemplate">下载模板</button>
-            <button class="tool-btn primary" @click="triggerUpload">导入题库 (.json)</button>
-            <button class="tool-btn" @click="resetDefault">重置默认</button>
+            <button class="tool-btn primary" @click="triggerUpload">📂 导入题库</button>
+            <button class="tool-btn" @click="resetDefault">↻ 重置</button>
             <input type="file" ref="fileInput" style="display: none" accept=".json" @change="handleFileLoad">
         </div>
     </div>
 
     <div class="content">
-        <div v-if="sentenceList.length === 0" style="color: #999;">
-            暂无句子，请点击右上角导入题库
+        <div v-if="sentenceList.length === 0" style="color: #999; margin-top: 50px;">
+            暂无句子，请点击右上角导入
         </div>
 
         <template v-else>
             <div class="chinese">{{ currentSentence.cn }}</div>
             <div class="phonetic">{{ currentSentence.phonetic }}</div>
 
-			<div class="sentence-area">
+            <div class="sentence-area">
                 <template v-for="(wordObj, index) in currentWordsData" :key="index">
-                    
                     <div class="word-wrapper" :style="{ width: getTextWidth(wordObj.correct) + 'px' }">
                         <div class="ghost-text" 
                              :class="{ 'show': isPeeking || (isPeekingSingle && index === focusedIndex) }">
@@ -107,36 +141,52 @@
 
                         <input 
                             :ref="el => inputRefs[index] = el"
-                            type="text" 
-                            class="word-input"
+                            type="text" class="word-input"
                             v-model="wordObj.userClick"
                             :class="[
                                 checkStatus(index), 
                                 { 'peeking': isPeeking || (isPeekingSingle && index === focusedIndex) }
                             ]"
-                            autocomplete="off" 
-                            spellcheck="false"
+                            autocomplete="off" spellcheck="false"
                             :disabled="isCompleted"
                             @keydown="handleKeydown($event, index)"
                             @input="handleInput($event, index)"
-                            @focus="focusedIndex = index" 
+                            @focus="focusedIndex = index"
                         >
                     </div>
-                    <span v-if="index === currentWordsData.length - 1" style="font-size: 32px; padding-bottom: 10px; color: #333;">,</span>
+                    <span v-if="index === currentWordsData.length - 1" style="font-size: 24px; padding-bottom: 5px; color: #333;">,</span>
                 </template>
             </div>
 
             <div class="success-area">
                 <button v-if="isCompleted" class="next-btn" @click="nextScene" ref="nextBtnRef">
-                    继续下一个 <span style="font-weight: bold;">→</span>
+                    继续下一个 →
                 </button>
             </div>
         </template>
     </div>
 
+    <div class="mobile-controls">
+        <button class="m-btn" @click="prevScene">← 上句</button>
+        <button class="m-btn" @click="playAudio">🔊 读音</button>
+        <button class="m-btn" 
+            @touchstart.prevent="startPeekSingle" 
+            @touchend.prevent="endPeekSingle"
+            @mousedown="startPeekSingle" 
+            @mouseup="endPeekSingle"
+        >💡 提示词</button>
+        <button class="m-btn peek-btn" 
+            @touchstart.prevent="startPeek" 
+            @touchend.prevent="endPeek"
+            @mousedown="startPeek" 
+            @mouseup="endPeek"
+        >👀 按住看</button>
+        <button class="m-btn" @click="nextScene">下句 →</button>
+    </div>
+
     <div class="footer">
-        <div><span class="key-btn">Space</span> 答案</div>
-        <div><span class="key-btn">Tab</span> 提示</div>
+        <div><span class="key-btn">Space</span> 按住看答案</div>
+        <div><span class="key-btn">Tab</span> 提示当前词</div>
         <div><span class="key-btn">Ctrl+P</span> 播放</div>
         <div><span class="key-btn">Ctrl+←/→</span> 切换</div>
     </div>
@@ -145,7 +195,7 @@
 <script>
     const { createApp, ref, computed, nextTick, onMounted, watch } = Vue;
 
-    // 默认数据（用于恢复）
+    // 默认备用数据
     const DEFAULT_DATA = [
         { cn: "最糟糕的是，", en: "Worst of all", phonetic: "/wɜːrst/ /ʌv/ /ɔːl/" },
         { cn: "总而言之，", en: "All in all", phonetic: "/ɔːl/ /ɪn/ /ɔːl/" }
@@ -155,135 +205,56 @@
         setup() {
             const sentenceList = ref([]);
             const currentIndex = ref(0);
-            const isPeeking = ref(false);
-			const isPeekingSingle = ref(false); // 专门控制 Tab 键的单词偷看
-            const focusedIndex = ref(0);        // 记录当前光标在第几个格子上
+            const isPeeking = ref(false);       // 空格全显
+            const isPeekingSingle = ref(false); // Tab单显
             const isCompleted = ref(false); 
             const inputRefs = ref([]);
             const nextBtnRef = ref(null);
             const currentWordsData = ref([]);
             const fileInput = ref(null);
+            const focusedIndex = ref(0);
 
-            // --- 核心：加载与保存逻辑 ---
             // --- 核心：自动从服务器加载 data.json ---
-            // 这是一个异步函数，支持从服务器获取文件
             const loadData = async () => {
                 let loadedFromServer = false;
-                
                 try {
-                    // 1. 尝试请求同目录下的 data.json 文件
-                    // ?t=... 是为了防止浏览器缓存旧题目，确保每次都是新的
                     const response = await fetch('./data.json?t=' + new Date().getTime());
-                    
                     if (response.ok) {
                         const json = await response.json();
                         if (Array.isArray(json) && json.length > 0) {
                             sentenceList.value = json;
                             loadedFromServer = true;
-                            console.log("成功加载服务器 data.json 题库！");
                         }
                     }
-                } catch (e) {
-                    console.log("服务器没有 data.json 或加载失败，尝试读取本地缓存...");
-                }
+                } catch (e) { console.log("本地模式"); }
 
-                // 2. 如果服务器没加载到数据（或者文件不存在），则尝试读取本地 localStorage
                 if (!loadedFromServer) {
                     const storedData = localStorage.getItem('english_practice_data');
                     if (storedData) {
-                        try {
-                            sentenceList.value = JSON.parse(storedData);
-                        } catch(e) {
-                            sentenceList.value = [...DEFAULT_DATA];
-                        }
+                        try { sentenceList.value = JSON.parse(storedData); } 
+                        catch(e) { sentenceList.value = [...DEFAULT_DATA]; }
                     } else {
-                        // 既没服务器文件，也没本地缓存，就用默认的一两句演示
                         sentenceList.value = [...DEFAULT_DATA];
                     }
                 }
 
-                // 3. 恢复上次的学习进度（是第几题）
                 const storedIndex = localStorage.getItem('english_practice_index');
                 if (storedIndex) {
                     const idx = parseInt(storedIndex);
-                    // 确保进度没有超过题目总数
-                    if (idx < sentenceList.value.length) {
-                        currentIndex.value = idx;
-                    } else {
-                        currentIndex.value = 0;
-                    }
+                    if (idx < sentenceList.value.length) currentIndex.value = idx;
                 }
-                
-                // 4. 初始化显示第一题
                 initSentence();
             };
 
-            // 这个函数保留，是为了兼容“手动导入”功能。
-            // 如果你手动上传了新文件，还是会保存到本地，下次优先读取本地还是服务器取决于你上面逻辑
-            // 但目前的逻辑是：服务器 data.json 优先级最高。
             const saveData = () => {
                 localStorage.setItem('english_practice_data', JSON.stringify(sentenceList.value));
             };
             
-            // 监听进度变化保存（这个必须保留，否则刷新就忘了学到哪了）
             watch(currentIndex, (newVal) => {
                 localStorage.setItem('english_practice_index', newVal);
             });
 
-            // --- 导入功能 ---
-            const triggerUpload = () => fileInput.value.click();
-
-            const handleFileLoad = (event) => {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const json = JSON.parse(e.target.result);
-                        if (Array.isArray(json) && json.length > 0 && json[0].en && json[0].cn) {
-                            sentenceList.value = json;
-                            currentIndex.value = 0; // 重置到第一题
-                            saveData(); // 保存到本地
-                            initSentence();
-                            alert(`成功导入 ${json.length} 个句子！`);
-                        } else {
-                            alert('JSON 格式不对，请下载模板查看格式。');
-                        }
-                    } catch (error) {
-                        alert('文件解析失败，请确保是标准的 JSON 文件。');
-                    }
-                };
-                reader.readAsText(file);
-                // 清空 input 允许重复上传同名文件
-                event.target.value = '';
-            };
-
-            // --- 下载模板 ---
-            const downloadTemplate = () => {
-                const template = [
-                    { cn: "中文意思1", en: "English Sentence One", phonetic: "音标可选" },
-                    { cn: "中文意思2", en: "English Sentence Two", phonetic: "" }
-                ];
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(template, null, 2));
-                const downloadAnchorNode = document.createElement('a');
-                downloadAnchorNode.setAttribute("href", dataStr);
-                downloadAnchorNode.setAttribute("download", "template.json");
-                document.body.appendChild(downloadAnchorNode);
-                downloadAnchorNode.click();
-                downloadAnchorNode.remove();
-            };
-
-            const resetDefault = () => {
-                if(confirm('确定要恢复默认题目并清除缓存吗？')) {
-                    sentenceList.value = [...DEFAULT_DATA];
-                    currentIndex.value = 0;
-                    saveData();
-                    initSentence();
-                }
-            };
-
-            // --- 原有逻辑 ---
+            // --- 逻辑控制 ---
             const initSentence = () => {
                 if (sentenceList.value.length === 0) return;
                 isCompleted.value = false;
@@ -297,7 +268,11 @@
                 return sentenceList.value[currentIndex.value] || { cn: '', en: '', phonetic: '' };
             });
 
-            const getTextWidth = (text) => Math.max(80, (text || '').length * 22); 
+            // 移动端字体适配：手机上单词不要太宽
+            const getTextWidth = (text) => {
+                const base = window.innerWidth < 600 ? 14 : 22; // 手机字号小，宽度系数减小
+                return Math.max(window.innerWidth < 600 ? 40 : 80, (text || '').length * base); 
+            };
 
             const checkStatus = (index) => {
                 const item = currentWordsData.value[index];
@@ -314,7 +289,8 @@
                 );
                 if (allCorrect) {
                     isCompleted.value = true;
-                    nextTick(() => { if (nextBtnRef.value) nextBtnRef.value.focus(); });
+                    // 收起手机键盘，让用户看到“继续”按钮
+                    if (document.activeElement) document.activeElement.blur();
                 }
             };
 
@@ -326,7 +302,6 @@
                         nextTick(() => inputRefs.value[index + 1].focus());
                     } else {
                         checkAllCorrect();
-                        e.target.blur();
                     }
                 }
             };
@@ -338,16 +313,9 @@
                     window.addEventListener('keyup', upListener);
                     return;
                 }
-				// Tab: 按住偷看当前单词 (不再是直接填入)
                 if (e.key === 'Tab') {
-                    e.preventDefault();
-                    isPeekingSingle.value = true; // 开启单词偷看
-                    
-                    // 监听松开 Tab 键
-                    const upListener = () => { 
-                        isPeekingSingle.value = false; // 关闭偷看
-                        window.removeEventListener('keyup', upListener); 
-                    };
+                    e.preventDefault(); isPeekingSingle.value = true;
+                    const upListener = () => { isPeekingSingle.value = false; window.removeEventListener('keyup', upListener); };
                     window.addEventListener('keyup', upListener);
                     return;
                 }
@@ -355,11 +323,15 @@
                     e.preventDefault(); if (index > 0) inputRefs.value[index - 1].focus();
                 }
                 if (e.ctrlKey && e.key.toLowerCase() === 'p') { e.preventDefault(); playAudio(); }
-                if (e.key === 'Enter' && isCompleted.value) { nextScene(); }
+                if (e.key === 'Enter') { 
+                    if (isCompleted.value) nextScene();
+                    else if (index < currentWordsData.value.length - 1) inputRefs.value[index + 1].focus(); // 手机Enter跳下一个
+                }
                 if (e.ctrlKey && e.key === 'ArrowLeft') { e.preventDefault(); prevScene(); }
                 if (e.ctrlKey && e.key === 'ArrowRight') { e.preventDefault(); nextScene(); }
             };
 
+            // --- 按钮功能 (PC/Mobile通用) ---
             const nextScene = () => {
                 if (currentIndex.value < sentenceList.value.length - 1) {
                     currentIndex.value++;
@@ -377,21 +349,62 @@
 
             const playAudio = () => {
                 if (!currentSentence.value.en) return;
+                window.speechSynthesis.cancel(); // 先停止之前的
                 const u = new SpeechSynthesisUtterance(currentSentence.value.en);
                 u.lang = 'en-US'; u.rate = 0.9;
-                speechSynthesis.speak(u);
+                window.speechSynthesis.speak(u);
+            };
+
+            // --- 移动端触控事件 ---
+            const startPeek = () => { isPeeking.value = true; };
+            const endPeek = () => { isPeeking.value = false; };
+            const startPeekSingle = () => { isPeekingSingle.value = true; };
+            const endPeekSingle = () => { isPeekingSingle.value = false; };
+
+            // --- 文件导入导出 ---
+            const triggerUpload = () => fileInput.value.click();
+            const handleFileLoad = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const json = JSON.parse(e.target.result);
+                        if (Array.isArray(json)) {
+                            sentenceList.value = json;
+                            currentIndex.value = 0;
+                            saveData();
+                            initSentence();
+                            alert(`导入成功: ${json.length}句`);
+                        }
+                    } catch (err) { alert('文件格式错误'); }
+                };
+                reader.readAsText(file);
+                event.target.value = '';
+            };
+            const downloadTemplate = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(DEFAULT_DATA, null, 2));
+                const a = document.createElement('a');
+                a.href = dataStr; a.download = "template.json"; a.click();
+            };
+            const resetDefault = () => {
+                if(confirm('恢复默认题库？')) {
+                    sentenceList.value = [...DEFAULT_DATA];
+                    currentIndex.value = 0;
+                    saveData();
+                    initSentence();
+                }
             };
 
             onMounted(() => {
                 loadData();
-                initSentence();
             });
 
             return {
-                sentenceList, currentIndex, currentSentence, currentWordsData, inputRefs, isPeeking, isCompleted, nextBtnRef, fileInput,
-                getTextWidth, checkStatus, handleKeydown, handleInput, nextScene, prevScene,
-                downloadTemplate, triggerUpload, handleFileLoad, resetDefault,isPeekingSingle, 
-                focusedIndex
+                sentenceList, currentIndex, currentSentence, currentWordsData, inputRefs, isPeeking, isPeekingSingle, isCompleted, nextBtnRef, fileInput, focusedIndex,
+                getTextWidth, checkStatus, handleKeydown, handleInput, nextScene, prevScene, playAudio,
+                downloadTemplate, triggerUpload, handleFileLoad, resetDefault,
+                startPeek, endPeek, startPeekSingle, endPeekSingle
             };
         }
     }).mount('#app');
