@@ -53,6 +53,12 @@
             position: relative; z-index: 1; background: transparent; border: none; border-bottom: 4px solid #e0e0e0; 
             font-size: 32px; text-align: center; color: #333; outline: none; padding-bottom: 6px; font-family: inherit; transition: all 0.2s; border-radius: 0; font-weight: 600;
         }
+        /* 新增：当按住空格偷看时，把输入框里的字变透明，防止重叠 */
+        .word-input.peeking {
+            color: transparent !important; /* 强制文字透明 */
+            caret-color: transparent;      /* 连光标也顺便隐藏，体验更像纯阅读 */
+            border-bottom-color: transparent; /* 可选：如果你想连下划线也隐藏，让画面更干净 */
+        }
         .word-input:focus { border-bottom-color: #54a0ff; }
         .word-input.error { color: #ff6b6b; border-bottom-color: #ff6b6b; }
         .word-input.correct { color: #1dd1a1; border-bottom-color: #1dd1a1; }
@@ -98,7 +104,7 @@
                             :ref="el => inputRefs[index] = el"
                             type="text" class="word-input"
                             v-model="wordObj.userClick"
-                            :class="checkStatus(index)"
+                            :class="[checkStatus(index), { 'peeking': isPeeking }]"
                             autocomplete="off" spellcheck="false"
                             :disabled="isCompleted"
                             @keydown="handleKeydown($event, index)"
@@ -370,4 +376,5 @@
     }).mount('#app');
 </script>
 </body>
+
 </html>
