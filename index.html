@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>英语句子练习 - 导入版</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { margin: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; color: #333; overflow: hidden; }
+        .app-container { width: 100%; max-width: 900px; text-align: center; padding: 20px; position: relative; height: 80vh; display: flex; flex-direction: column; }
+        
+        /* 顶部栏：包含进度和工具按钮 */
+        .top-bar { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+            color: #999; 
+            font-size: 14px; 
+        }
+
+        .tools { display: flex; gap: 10px; }
+        .tool-btn {
+            background: #fff; border: 1px solid #ddd; padding: 4px 10px; cursor: pointer; border-radius: 4px; font-size: 12px; color: #666; transition: all 0.2s;
+        }
+        .tool-btn:hover { background: #f5f5f5; border-color: #bbb; color: #333; }
+        .tool-btn.primary { background: #54a0ff; color: #fff; border-color: #54a0ff; }
+        .tool-btn.primary:hover { background: #2e86de; }
+
+        .content { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .chinese { font-size: 38px; font-weight: 500; margin-bottom: 20px; color: #2c3e50; }
+        .phonetic { color: #95a5a6; font-family: Consolas, 'Courier New', monospace; font-size: 18px; margin-bottom: 60px; }
+        
+        .sentence-area { 
+            display: flex; justify-content: center; align-items: flex-end; flex-wrap: wrap; 
+            gap: 40px; min-height: 80px; margin-bottom: 40px;
+        }
+        
+        .word-wrapper { position: relative; display: flex; flex-direction: column; align-items: center; }
+
+        .ghost-text {
+            position: absolute; bottom: 6px; left: 0; width: 100%; text-align: center; font-size: 32px;
+            color: #e0e0e0; font-weight: bold; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 0;
+        }
+        .ghost-text.show { opacity: 1; }
+
+        .word-input {
+            position: relative; z-index: 1; background: transparent; border: none; border-bottom: 4px solid #e0e0e0; 
+            font-size: 32px; text-align: center; color: #333; outline: none; padding-bottom: 6px; font-family: inherit; transition: all 0.2s; border-radius: 0; font-weight: 600;
+        }
+        .word-input:focus { border-bottom-color: #54a0ff; }
+        .word-input.error { color: #ff6b6b; border-bottom-color: #ff6b6b; }
+        .word-input.correct { color: #1dd1a1; border-bottom-color: #1dd1a1; }
+
+        .success-area { margin-top: 40px; height: 50px; animation: fadeIn 0.3s ease-out; }
+        .next-btn {
+            background-color: #f5f5f5; border: 1px solid #e0e0e0; padding: 12px 60px; font-size: 16px; color: #666; border-radius: 8px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 10px;
+        }
+        .next-btn:hover { background-color: #e8e8e8; color: #333; transform: translateY(-2px); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .footer { margin-top: auto; display: flex; justify-content: center; gap: 15px; color: #aaa; font-size: 12px; }
+        .key-btn { background: #f1f2f6; padding: 4px 10px; border-radius: 4px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+
+<div id="app" class="app-container">
+    <div class="top-bar">
+        <div>Progress: {{ currentIndex + 1 }} / {{ sentenceList.length }}</div>
+        <div class="tools">
+            <button class="tool-btn" @click="downloadTemplate">下载模板</button>
+            <button class="tool-btn primary" @click="triggerUpload">导入题库 (.json)</button>
+            <button class="tool-btn" @click="resetDefault">重置默认</button>
+            <input type="file" ref="fileInput" style="display: none" accept=".json" @change="handleFileLoad">
+        </div>
+    </div>
+
+    <div class="content">
+        <div v-if="sentenceList.length === 0" style="color: #999;">
+            暂无句子，请点击右上角导入题库
+        </div>
+
+        <template v-else>
+            <div class="chinese">{{ currentSentence.cn }}</div>
+            <div class="phonetic">{{ currentSentence.phonetic }}</div>
+
+            <div class="sentence-area">
+                <template v-for="(wordObj, index) in currentWordsData" :key="index">
+                    <div class="word-wrapper" :style="{ width: getTextWidth(wordObj.correct) + 'px' }">
+                        <div class="ghost-text" :class="{ 'show': isPeeking }">{{ wordObj.correct }}</div>
+                        <input 
+                            :ref="el => inputRefs[index] = el"
+                            type="text" class="word-input"
+                            v-model="wordObj.userClick"
+                            :class="checkStatus(index)"
+                            autocomplete="off" spellcheck="false"
+                            :disabled="isCompleted"
+                            @keydown="handleKeydown($event, index)"
+                            @input="handleInput($event, index)"
+                        >
+                    </div>
+                    <span v-if="index === currentWordsData.length - 1" style="font-size: 32px; padding-bottom: 10px; color: #333;">,</span>
+                </template>
+            </div>
+
+            <div class="success-area">
+                <button v-if="isCompleted" class="next-btn" @click="nextScene" ref="nextBtnRef">
+                    继续下一个 <span style="font-weight: bold;">→</span>
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <div class="footer">
+        <div><span class="key-btn">Space</span> 答案</div>
+        <div><span class="key-btn">Tab</span> 提示</div>
+        <div><span class="key-btn">Ctrl+P</span> 播放</div>
+        <div><span class="key-btn">Ctrl+←/→</span> 切换</div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, computed, nextTick, onMounted, watch } = Vue;
+
+    // 默认数据（用于恢复）
+    const DEFAULT_DATA = [
+        { cn: "最糟糕的是，", en: "Worst of all", phonetic: "/wɜːrst/ /ʌv/ /ɔːl/" },
+        { cn: "总而言之，", en: "All in all", phonetic: "/ɔːl/ /ɪn/ /ɔːl/" }
+    ];
+
+    createApp({
+        setup() {
+            const sentenceList = ref([]);
+            const currentIndex = ref(0);
+            const isPeeking = ref(false);
+            const isCompleted = ref(false); 
+            const inputRefs = ref([]);
+            const nextBtnRef = ref(null);
+            const currentWordsData = ref([]);
+            const fileInput = ref(null);
+
+            // --- 核心：加载与保存逻辑 ---
+            // --- 核心：自动从服务器加载 data.json ---
+            // 这是一个异步函数，支持从服务器获取文件
+            const loadData = async () => {
+                let loadedFromServer = false;
+                
+                try {
+                    // 1. 尝试请求同目录下的 data.json 文件
+                    // ?t=... 是为了防止浏览器缓存旧题目，确保每次都是新的
+                    const response = await fetch('./data.json?t=' + new Date().getTime());
+                    
+                    if (response.ok) {
+                        const json = await response.json();
+                        if (Array.isArray(json) && json.length > 0) {
+                            sentenceList.value = json;
+                            loadedFromServer = true;
+                            console.log("成功加载服务器 data.json 题库！");
+                        }
+                    }
+                } catch (e) {
+                    console.log("服务器没有 data.json 或加载失败，尝试读取本地缓存...");
+                }
+
+                // 2. 如果服务器没加载到数据（或者文件不存在），则尝试读取本地 localStorage
+                if (!loadedFromServer) {
+                    const storedData = localStorage.getItem('english_practice_data');
+                    if (storedData) {
+                        try {
+                            sentenceList.value = JSON.parse(storedData);
+                        } catch(e) {
+                            sentenceList.value = [...DEFAULT_DATA];
+                        }
+                    } else {
+                        // 既没服务器文件，也没本地缓存，就用默认的一两句演示
+                        sentenceList.value = [...DEFAULT_DATA];
+                    }
+                }
+
+                // 3. 恢复上次的学习进度（是第几题）
+                const storedIndex = localStorage.getItem('english_practice_index');
+                if (storedIndex) {
+                    const idx = parseInt(storedIndex);
+                    // 确保进度没有超过题目总数
+                    if (idx < sentenceList.value.length) {
+                        currentIndex.value = idx;
+                    } else {
+                        currentIndex.value = 0;
+                    }
+                }
+                
+                // 4. 初始化显示第一题
+                initSentence();
+            };
+
+            // 这个函数保留，是为了兼容“手动导入”功能。
+            // 如果你手动上传了新文件，还是会保存到本地，下次优先读取本地还是服务器取决于你上面逻辑
+            // 但目前的逻辑是：服务器 data.json 优先级最高。
+            const saveData = () => {
+                localStorage.setItem('english_practice_data', JSON.stringify(sentenceList.value));
+            };
+            
+            // 监听进度变化保存（这个必须保留，否则刷新就忘了学到哪了）
+            watch(currentIndex, (newVal) => {
+                localStorage.setItem('english_practice_index', newVal);
+            });
+
+            // --- 导入功能 ---
+            const triggerUpload = () => fileInput.value.click();
+
+            const handleFileLoad = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const json = JSON.parse(e.target.result);
+                        if (Array.isArray(json) && json.length > 0 && json[0].en && json[0].cn) {
+                            sentenceList.value = json;
+                            currentIndex.value = 0; // 重置到第一题
+                            saveData(); // 保存到本地
+                            initSentence();
+                            alert(`成功导入 ${json.length} 个句子！`);
+                        } else {
+                            alert('JSON 格式不对，请下载模板查看格式。');
+                        }
+                    } catch (error) {
+                        alert('文件解析失败，请确保是标准的 JSON 文件。');
+                    }
+                };
+                reader.readAsText(file);
+                // 清空 input 允许重复上传同名文件
+                event.target.value = '';
+            };
+
+            // --- 下载模板 ---
+            const downloadTemplate = () => {
+                const template = [
+                    { cn: "中文意思1", en: "English Sentence One", phonetic: "音标可选" },
+                    { cn: "中文意思2", en: "English Sentence Two", phonetic: "" }
+                ];
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(template, null, 2));
+                const downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "template.json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            };
+
+            const resetDefault = () => {
+                if(confirm('确定要恢复默认题目并清除缓存吗？')) {
+                    sentenceList.value = [...DEFAULT_DATA];
+                    currentIndex.value = 0;
+                    saveData();
+                    initSentence();
+                }
+            };
+
+            // --- 原有逻辑 ---
+            const initSentence = () => {
+                if (sentenceList.value.length === 0) return;
+                isCompleted.value = false;
+                const words = sentenceList.value[currentIndex.value].en.split(' ');
+                currentWordsData.value = words.map(w => ({ correct: w, userClick: '' }));
+                nextTick(() => { if(inputRefs.value[0]) inputRefs.value[0].focus(); });
+                setTimeout(() => { playAudio(); }, 500);
+            };
+
+            const currentSentence = computed(() => {
+                return sentenceList.value[currentIndex.value] || { cn: '', en: '', phonetic: '' };
+            });
+
+            const getTextWidth = (text) => Math.max(80, (text || '').length * 22); 
+
+            const checkStatus = (index) => {
+                const item = currentWordsData.value[index];
+                if (!item.userClick) return '';
+                if (item.correct.toLowerCase().startsWith(item.userClick.toLowerCase())) {
+                     return item.userClick.length === item.correct.length ? 'correct' : '';
+                }
+                return 'error';
+            };
+
+            const checkAllCorrect = () => {
+                const allCorrect = currentWordsData.value.every(item => 
+                    item.userClick.toLowerCase() === item.correct.toLowerCase()
+                );
+                if (allCorrect) {
+                    isCompleted.value = true;
+                    nextTick(() => { if (nextBtnRef.value) nextBtnRef.value.focus(); });
+                }
+            };
+
+            const handleInput = (e, index) => {
+                const val = e.target.value;
+                const correct = currentWordsData.value[index].correct;
+                if (val.toLowerCase() === correct.toLowerCase()) {
+                    if (index < currentWordsData.value.length - 1) {
+                        nextTick(() => inputRefs.value[index + 1].focus());
+                    } else {
+                        checkAllCorrect();
+                        e.target.blur();
+                    }
+                }
+            };
+
+            const handleKeydown = (e, index) => {
+                if (e.code === 'Space') {
+                    e.preventDefault(); isPeeking.value = true;
+                    const upListener = () => { isPeeking.value = false; window.removeEventListener('keyup', upListener); };
+                    window.addEventListener('keyup', upListener);
+                    return;
+                }
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    currentWordsData.value[index].userClick = currentWordsData.value[index].correct;
+                    if (index < currentWordsData.value.length - 1) { inputRefs.value[index + 1].focus(); } else { checkAllCorrect(); }
+                    return;
+                }
+                if (e.key === 'Backspace' && currentWordsData.value[index].userClick === '') {
+                    e.preventDefault(); if (index > 0) inputRefs.value[index - 1].focus();
+                }
+                if (e.ctrlKey && e.key.toLowerCase() === 'p') { e.preventDefault(); playAudio(); }
+                if (e.key === 'Enter' && isCompleted.value) { nextScene(); }
+                if (e.ctrlKey && e.key === 'ArrowLeft') { e.preventDefault(); prevScene(); }
+                if (e.ctrlKey && e.key === 'ArrowRight') { e.preventDefault(); nextScene(); }
+            };
+
+            const nextScene = () => {
+                if (currentIndex.value < sentenceList.value.length - 1) {
+                    currentIndex.value++;
+                    initSentence();
+                } else {
+                    alert("练习完成！即将重新开始");
+                    currentIndex.value = 0;
+                    initSentence();
+                }
+            };
+
+            const prevScene = () => {
+                if (currentIndex.value > 0) { currentIndex.value--; initSentence(); }
+            };
+
+            const playAudio = () => {
+                if (!currentSentence.value.en) return;
+                const u = new SpeechSynthesisUtterance(currentSentence.value.en);
+                u.lang = 'en-US'; u.rate = 0.9;
+                speechSynthesis.speak(u);
+            };
+
+            onMounted(() => {
+                loadData();
+                initSentence();
+            });
+
+            return {
+                sentenceList, currentIndex, currentSentence, currentWordsData, inputRefs, isPeeking, isCompleted, nextBtnRef, fileInput,
+                getTextWidth, checkStatus, handleKeydown, handleInput, nextScene, prevScene,
+                downloadTemplate, triggerUpload, handleFileLoad, resetDefault
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
+</html>
