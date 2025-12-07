@@ -53,7 +53,7 @@
             position: relative; z-index: 1; background: transparent; border: none; border-bottom: 4px solid #e0e0e0; 
             font-size: 32px; text-align: center; color: #333; outline: none; padding-bottom: 6px; font-family: inherit; transition: all 0.2s; border-radius: 0; font-weight: 600;
         }
-        /* 新增：当按住空格偷看时，把输入框里的字变透明，防止重叠 */
+		/* 新增：当按住空格偷看时，把输入框里的字变透明，防止重叠 */
         .word-input.peeking {
             color: transparent !important; /* 强制文字透明 */
             caret-color: transparent;      /* 连光标也顺便隐藏，体验更像纯阅读 */
@@ -96,19 +96,30 @@
             <div class="chinese">{{ currentSentence.cn }}</div>
             <div class="phonetic">{{ currentSentence.phonetic }}</div>
 
-            <div class="sentence-area">
+			<div class="sentence-area">
                 <template v-for="(wordObj, index) in currentWordsData" :key="index">
+                    
                     <div class="word-wrapper" :style="{ width: getTextWidth(wordObj.correct) + 'px' }">
-                        <div class="ghost-text" :class="{ 'show': isPeeking }">{{ wordObj.correct }}</div>
+                        <div class="ghost-text" 
+                             :class="{ 'show': isPeeking || (isPeekingSingle && index === focusedIndex) }">
+                            {{ wordObj.correct }}
+                        </div>
+
                         <input 
                             :ref="el => inputRefs[index] = el"
-                            type="text" class="word-input"
+                            type="text" 
+                            class="word-input"
                             v-model="wordObj.userClick"
-                            :class="[checkStatus(index), { 'peeking': isPeeking }]"
-                            autocomplete="off" spellcheck="false"
+                            :class="[
+                                checkStatus(index), 
+                                { 'peeking': isPeeking || (isPeekingSingle && index === focusedIndex) }
+                            ]"
+                            autocomplete="off" 
+                            spellcheck="false"
                             :disabled="isCompleted"
                             @keydown="handleKeydown($event, index)"
                             @input="handleInput($event, index)"
+                            @focus="focusedIndex = index" 
                         >
                     </div>
                     <span v-if="index === currentWordsData.length - 1" style="font-size: 32px; padding-bottom: 10px; color: #333;">,</span>
@@ -145,6 +156,8 @@
             const sentenceList = ref([]);
             const currentIndex = ref(0);
             const isPeeking = ref(false);
+			const isPeekingSingle = ref(false); // 专门控制 Tab 键的单词偷看
+            const focusedIndex = ref(0);        // 记录当前光标在第几个格子上
             const isCompleted = ref(false); 
             const inputRefs = ref([]);
             const nextBtnRef = ref(null);
@@ -325,10 +338,17 @@
                     window.addEventListener('keyup', upListener);
                     return;
                 }
+				// Tab: 按住偷看当前单词 (不再是直接填入)
                 if (e.key === 'Tab') {
                     e.preventDefault();
-                    currentWordsData.value[index].userClick = currentWordsData.value[index].correct;
-                    if (index < currentWordsData.value.length - 1) { inputRefs.value[index + 1].focus(); } else { checkAllCorrect(); }
+                    isPeekingSingle.value = true; // 开启单词偷看
+                    
+                    // 监听松开 Tab 键
+                    const upListener = () => { 
+                        isPeekingSingle.value = false; // 关闭偷看
+                        window.removeEventListener('keyup', upListener); 
+                    };
+                    window.addEventListener('keyup', upListener);
                     return;
                 }
                 if (e.key === 'Backspace' && currentWordsData.value[index].userClick === '') {
@@ -370,11 +390,11 @@
             return {
                 sentenceList, currentIndex, currentSentence, currentWordsData, inputRefs, isPeeking, isCompleted, nextBtnRef, fileInput,
                 getTextWidth, checkStatus, handleKeydown, handleInput, nextScene, prevScene,
-                downloadTemplate, triggerUpload, handleFileLoad, resetDefault
+                downloadTemplate, triggerUpload, handleFileLoad, resetDefault,isPeekingSingle, 
+                focusedIndex
             };
         }
     }).mount('#app');
 </script>
 </body>
-
 </html>
